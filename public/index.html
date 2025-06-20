@@ -14,7 +14,7 @@
             <input type="file" id="fileInput" accept=".xlsx" />
         </div>
         <p id="status">No file uploaded yet.</p>
-        <a id="downloadLink" style="display: none;" href="#" download>Download Processed File</a>
+        <a id="downloadLink" style="display: none;" href="#" download>Download Spreadsheet</a>
     </div>
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -54,43 +54,29 @@
         });
 
         async function uploadFile(file) {
-            status.textContent = 'Uploading file...';
+            status.textContent = 'Uploading and processing file...';
             try {
-                // Request presigned URL from backend
+                const formData = new FormData();
+                formData.append('file', file);
+
                 const response = await fetch('/api/process_excel', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename: file.name })
-                });
-                const { uploadUrl, key } = await response.json();
-
-                if (!uploadUrl) {
-                    throw new Error('Failed to get upload URL');
-                }
-
-                // Upload file to Vercel Blob using presigned URL
-                await fetch(uploadUrl, {
-                    method: 'PUT',
-                    body: file,
-                    headers: { 'Content-Type': file.type }
+                    body: formData
                 });
 
-                status.textContent = 'Processing file...';
+                const result = await response.json();
 
-                // Trigger processing
-                const processResponse = await fetch('/api/process_excel', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key })
-                });
-                const processResult = await processResponse.json();
-
-                if (processResult.downloadUrl) {
+                if (response.ok && result.content) {
                     status.textContent = 'File processed successfully!';
-                    downloadLink.href = processResult.downloadUrl;
+                    const blob = new Blob([Uint8Array.from(atob(result.content), c => c.charCodeAt(0))], {
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    });
+                    const url = window.URL.createObjectURL(blob);
+                    downloadLink.href = url;
+                    downloadLink.download = result.filename;
                     downloadLink.style.display = 'block';
                 } else {
-                    status.textContent = 'Error processing file: ' + (processResult.error || 'Unknown error');
+                    status.textContent = 'Error: ' + (result.error || 'Processing failed');
                 }
             } catch (error) {
                 status.textContent = 'Error: ' + error.message;
