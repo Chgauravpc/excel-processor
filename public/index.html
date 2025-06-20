@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel File Processor</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Excel File Processor</h1>
+        <div id="dropzone" class="dropzone">
+            <p>Drag and drop your Excel file here or click to select</p>
+            <input type="file" id="fileInput" accept=".xlsx" />
+        </div>
+        <p id="status">No file uploaded yet.</p>
+        <a id="downloadLink" style="display: none;" href="#" download>Download Processed File</a>
+    </div>
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const downloadLink = document.getElementById('downloadLink');
+
+        // Drag-and-drop event listeners
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.xlsx')) {
+                fileInput.files = e.dataTransfer.files;
+                uploadFile(file);
+            } else {
+                status.textContent = 'Please upload a valid .xlsx file.';
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (file && file.name.endsWith('.xlsx')) {
+                uploadFile(file);
+            } else {
+                status.textContent = 'Please upload a valid .xlsx file.';
+            }
+        });
+
+        async function uploadFile(file) {
+            status.textContent = 'Uploading file...';
+            try {
+                // Request presigned URL from backend
+                const response = await fetch('/api/process_excel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: file.name })
+                });
+                const { uploadUrl, key } = await response.json();
+
+                if (!uploadUrl) {
+                    throw new Error('Failed to get upload URL');
+                }
+
+                // Upload file to Vercel Blob using presigned URL
+                await fetch(uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': file.type }
+                });
+
+                status.textContent = 'Processing file...';
+
+                // Trigger processing
+                const processResponse = await fetch('/api/process_excel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+                const processResult = await processResponse.json();
+
+                if (processResult.downloadUrl) {
+                    status.textContent = 'File processed successfully!';
+                    downloadLink.href = processResult.downloadUrl;
+                    downloadLink.style.display = 'block';
+                } else {
+                    status.textContent = 'Error processing file: ' + (processResult.error || 'Unknown error');
+                }
+            } catch (error) {
+                status.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+h1 {
+    color: #333;
+}
+
+.dropzone {
+    border: 2px dashed #007bff;
+    padding: 20px;
+    border-radius: 5px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.dropzone.dragover {
+    border-color: #28a745;
+    background-color: #e6f3ff;
+}
+
+.dropzone p {
+    margin: 0;
+    color: #555;
+}
+
+#fileInput {
+    display: none;
+}
+
+#status {
+    margin-top: 20px;
+    color: #333;
+}
+
+#downloadLink {
+    display: block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+#downloadLink:hover {
+    background-color: #0056b3;
+}
