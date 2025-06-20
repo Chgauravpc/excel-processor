@@ -6,41 +6,63 @@ import tempfile
 import base64
 import logging
 import os
+import sys
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def handler(request):
-    logger.info("Received request")
+def handler(event, context):
+    logger.info("Received event")
     try:
-        # Check request method
-        if request.method != "POST":
-            logger.error("Invalid method")
-            return {
-                "statusCode": 405,
-                "body": json.dumps({"error": "Method not allowed"})
-            }
-
-        # Parse JSON payload
-        data = request.json
-        if not data or "file" not in data or "filename" not in data:
-            logger.error("Invalid payload")
+        # Read raw request body
+        if not hasattr(event, 'body') or not event.body:
+            logger.error("No request body")
             return {
                 "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "No request body"})
+            }
+
+        # Parse JSON body
+        try:
+            body = json.loads(event.body.decode('utf-8') if isinstance(event.body, bytes) else event.body)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON: {str(e)}")
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "Invalid JSON payload"})
+            }
+
+        # Validate payload
+        if "file" not in body or "filename" not in body:
+            logger.error("Missing file or filename")
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
                 "body": json.dumps({"error": "Missing file or filename in payload"})
             }
 
-        filename = data["filename"]
+        filename = body["filename"]
         if not filename.endswith('.xlsx'):
             logger.error("Invalid file extension")
             return {
                 "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
                 "body": json.dumps({"error": "File must be .xlsx"})
             }
 
         # Decode base64 file content
-        file_content = base64.b64decode(data["file"])
+        try:
+            file_content = base64.b64decode(body["file"])
+        except base64.binascii.Error as e:
+            logger.error(f"Invalid base64: {str(e)}")
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "Invalid base64 file content"})
+            }
         logger.info(f"Decoded file: {filename}")
 
         # Save to /tmp
@@ -136,6 +158,7 @@ def handler(request):
 
         return {
             "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
             "body": json.dumps({
                 "filename": f"processed_{filename}",
                 "content": processed_content
@@ -145,5 +168,6 @@ def handler(request):
         logger.error(f"Server error: {str(e)}")
         return {
             "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"error": f"Server error: {str(e)}"})
         }
