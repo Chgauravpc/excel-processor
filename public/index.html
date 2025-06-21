@@ -14,7 +14,7 @@
             <input type="file" id="fileInput" accept=".xlsx" />
         </div>
         <p id="status">No file uploaded yet.</p>
-        <a id="downloadLink" style="display: none;" href="#" download>Download Spreadsheet</a>
+        <a id="downloadLink" style="display: none;" href="#" download>Download Processed File</a>
     </div>
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -56,15 +56,39 @@
         async function uploadFile(file) {
             status.textContent = 'Uploading and processing file...';
             try {
-                const formData = new FormData();
-                formData.append('file', file);
+                // Convert file to base64
+                const reader = new FileReader();
+                const fileContent = await new Promise((resolve, reject) => {
+                    reader.onload = () => {
+                        const base64 = reader.result.split(',')[1];
+                        console.log('Base64 length:', base64.length);
+                        resolve(base64);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
 
+                // Prepare JSON payload
+                const payload = {
+                    filename: file.name,
+                    file: fileContent
+                };
+                console.log('Sending payload:', {
+                    filename: file.name,
+                    fileLength: fileContent.length
+                });
+
+                // Send to backend
                 const response = await fetch('/api/process_excel', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
+                console.log('Response:', result);
 
                 if (response.ok && result.content) {
                     status.textContent = 'File processed successfully!';
@@ -79,6 +103,7 @@
                     status.textContent = 'Error: ' + (result.error || 'Processing failed');
                 }
             } catch (error) {
+                console.error('Frontend error:', error);
                 status.textContent = 'Error: ' + error.message;
             }
         }

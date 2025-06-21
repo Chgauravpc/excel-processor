@@ -18,11 +18,17 @@ app = Flask(__name__)
 def process_excel():
     logger.info("Received request")
     try:
-        # Parse JSON payload
+        # Log headers and raw body for debugging
+        logger.info(f"Request headers: {dict(request.headers)}")
+        raw_body = request.get_data(as_text=True)
+        logger.info(f"Raw request body: {raw_body[:100]}...")  # Truncate for brevity
+
+        # Check for JSON payload
         if not request.is_json:
             logger.error("No JSON payload")
-            return jsonify({"error": "No JSON payload"}), 400
+            return jsonify({"error": "Request must be JSON", "content_type": request.content_type}), 400
 
+        # Parse JSON payload
         data = request.get_json()
         if not data or "file" not in data or "filename" not in data:
             logger.error("Missing file or filename")
