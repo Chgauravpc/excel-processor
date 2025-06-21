@@ -8,7 +8,7 @@
         {
             "src": "api/process_excel.py",
             "use": "@vercel/python",
-            "config": { "runtime": "python3.9" }
+            "config": { "runtime": "python3.12" }
         }
     ],
     "routes": [
